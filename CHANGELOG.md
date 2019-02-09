@@ -1,3 +1,7 @@
+## [0.0.4] - February 9, 2019
+
+Upgraded to Dart 2 support and upgraded example project to match latest framework structure.
+
 ## [0.0.3] - April 29, 2018
 
 Connected AudioPlaylistComponent to AudioPlaylist so that the component is rebuilt whenever the ancestor AudioPlaylist is rebuilt.

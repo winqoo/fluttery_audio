@@ -3,7 +3,6 @@ import 'package:fluttery_audio/fluttery_audio.dart';
 import 'package:meta/meta.dart';
 
 class ImperativeButtonListScreen extends StatefulWidget {
-
   final String audioUrl;
 
   ImperativeButtonListScreen({
@@ -24,18 +23,15 @@ class _ImperativeButtonListScreenState extends State<ImperativeButtonListScreen>
     super.initState();
 
     audioPlayer = FlutteryAudio.audioPlayer();
-    audioPlayer.addListener(
-        onAudioLengthChanged: (Duration audioLength) {
-          setState(() {
-            this.audioLength = audioLength;
-          });
-        },
-        onPlayerPlaybackUpdate: (Duration position) {
-          setState(() {
-            this.position = position;
-          });
-        }
-    );
+    audioPlayer.addListener(AudioPlayerListener(onAudioLengthChanged: (Duration audioLength) {
+      setState(() {
+        this.audioLength = audioLength;
+      });
+    }, onPlayerPositionChanged: (Duration position) {
+      setState(() {
+        this.position = position;
+      });
+    }));
   }
 
   Widget _buildButton(String title, VoidCallback onPressed) {
@@ -70,10 +66,7 @@ class _ImperativeButtonListScreenState extends State<ImperativeButtonListScreen>
         new Slider(
             value: position == null ? 0.0 : position.inMilliseconds.toDouble(),
             max: audioLength == null ? 1.0 : audioLength.inMilliseconds.toDouble(),
-            onChanged: (double newValue) {
-
-            }
-        ),
+            onChanged: (double newValue) {}),
       ],
     );
   }

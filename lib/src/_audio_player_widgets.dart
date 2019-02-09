@@ -7,11 +7,8 @@ import 'package:meta/meta.dart';
 final _log = new Logger('AudioPlayerWidget');
 
 class Audio extends StatefulWidget {
-
   static AudioPlayer of(BuildContext context) {
-    _AudioState state = context.ancestorStateOfType(
-        new TypeMatcher<_AudioState>()
-    );
+    _AudioState state = context.ancestorStateOfType(new TypeMatcher<_AudioState>());
     return state?._player;
   }
 
@@ -37,8 +34,7 @@ class Audio extends StatefulWidget {
   _AudioState createState() => new _AudioState();
 }
 
-class _AudioState extends State<Audio> {
-
+class _AudioState extends State<Audio> implements AudioPlayerListener {
   AudioPlayer _player;
   String _audioUrl;
   PlaybackState _playbackState;
@@ -49,18 +45,7 @@ class _AudioState extends State<Audio> {
 
     // TODO: player ID
     _player = FlutteryAudio.audioPlayer();
-    _player.addListener(
-      onBufferingUpdate: _onBufferingUpdate,
-      onAudioReady: _onAudioReady,
-      onPlayerPlaybackUpdate: _onPlayerPlaybackUpdate,
-      onStateChanged: _onStateChanged,
-      onSeekStarted: () {
-        _onSeekingChanged(true);
-      },
-      onSeekCompleted: () {
-        _onSeekingChanged(false);
-      }
-    );
+    _player.addListener(this);
 
     _setAudioUrl(widget.audioUrl);
     _playbackState = widget.playbackState;
@@ -104,17 +89,33 @@ class _AudioState extends State<Audio> {
     }
   }
 
-  _onBufferingUpdate(int percent) {
-//    _log.fine('on buffering update: $percent');
-    if (widget.callMe.contains(WatchableAudioProperties.audioBuffering)) {
-      widget.playerCallback(context, _player);
-    }
-    if (widget.buildMe.contains(WatchableAudioProperties.audioBuffering)) {
-      setState(() {});
+  @override
+  void dispose() {
+    _player.removeListener(this);
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _log.fine('building');
+    if (widget.playerBuilder != null) {
+      return widget.playerBuilder(context, _player, widget.child);
+    } else if (widget.child != null) {
+      return widget.child;
+    } else {
+      return new Container();
     }
   }
 
-  _onAudioReady() {
+  @override
+  onAudioLengthChanged(Duration length) {}
+
+  @override
+  onAudioLoading() {}
+
+  @override
+  onAudioReady() {
     _log.fine('on audio ready');
     if (_playbackState == PlaybackState.playing) {
       _player.play();
@@ -131,18 +132,9 @@ class _AudioState extends State<Audio> {
     }
   }
 
-  _onPlayerPlaybackUpdate(Duration position) {
-//    _log.fine('on playback update: $position');
-    if (widget.callMe.contains(WatchableAudioProperties.audioPlayhead)) {
-      widget.playerCallback(context, _player);
-    }
-    if (widget.buildMe.contains(WatchableAudioProperties.audioPlayhead)) {
-      setState(() {});
-    }
-  }
-
-  _onStateChanged(AudioPlayerState newState) {
-    _log.fine('on state changed: $newState');
+  @override
+  onAudioStateChanged(AudioPlayerState audioState) {
+    _log.fine('on state changed: $audioState');
     if (widget.callMe.contains(WatchableAudioProperties.audioPlayerState)) {
       widget.playerCallback(context, _player);
     }
@@ -151,31 +143,57 @@ class _AudioState extends State<Audio> {
     }
   }
 
-  _onSeekingChanged(bool isSeeking) {
+  @override
+  onBufferingUpdate(int percent) {
+    //    _log.fine('on buffering update: $percent');
+    if (widget.callMe.contains(WatchableAudioProperties.audioBuffering)) {
+      widget.playerCallback(context, _player);
+    }
+    if (widget.buildMe.contains(WatchableAudioProperties.audioBuffering)) {
+      setState(() {});
+    }
+  }
+
+  @override
+  onPlayerCompleted() {}
+
+  @override
+  onPlayerPaused() {}
+
+  @override
+  onPlayerPlaying() {}
+
+  @override
+  onPlayerPositionChanged(Duration position) {
+    //    _log.fine('on playback update: $position');
+    if (widget.callMe.contains(WatchableAudioProperties.audioPlayhead)) {
+      widget.playerCallback(context, _player);
+    }
+    if (widget.buildMe.contains(WatchableAudioProperties.audioPlayhead)) {
+      setState(() {});
+    }
+  }
+
+  @override
+  onPlayerStopped() {}
+
+  @override
+  onSeekCompleted() {
+    _onSeekingChanged(false);
+  }
+
+  @override
+  onSeekStarted() {
+    _onSeekingChanged(true);
+  }
+
+  void _onSeekingChanged(bool isSeeking) {
     _log.fine('on seeking changed: $isSeeking');
     if (widget.callMe.contains(WatchableAudioProperties.audioSeeking)) {
       widget.playerCallback(context, _player);
     }
     if (widget.buildMe.contains(WatchableAudioProperties.audioSeeking)) {
       setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    _log.fine('building');
-    if (widget.playerBuilder != null) {
-      return widget.playerBuilder(context, _player, widget.child);
-    } else if (widget.child != null) {
-      return widget.child;
-    } else {
-      return new Container();
     }
   }
 }
@@ -194,7 +212,6 @@ enum PlaybackState {
 }
 
 class AudioComponent extends StatefulWidget {
-
   final List<WatchableAudioProperties> updateMe;
   final Widget Function(BuildContext, AudioPlayer, Widget child) playerBuilder;
   final Widget child;
@@ -209,8 +226,7 @@ class AudioComponent extends StatefulWidget {
   _AudioComponentState createState() => new _AudioComponentState();
 }
 
-class _AudioComponentState extends State<AudioComponent> {
-
+class _AudioComponentState extends State<AudioComponent> implements AudioPlayerListener {
   AudioPlayer _player;
 
   @override
@@ -221,62 +237,86 @@ class _AudioComponentState extends State<AudioComponent> {
     if (_player == null) {
       throw new StateError('AudioComponent could not find an Audio ancestor.');
     }
-    _player.addListener(
-        onBufferingUpdate: _onBufferingUpdate,
-        onAudioReady: _onAudioReady,
-        onPlayerPlaybackUpdate: _onPlayerPlaybackUpdate,
-        onStateChanged: _onStateChanged,
-        onSeekStarted: () {
-          _onSeekingChanged(true);
-        },
-        onSeekCompleted: () {
-          _onSeekingChanged(false);
-        }
-    );
+    _player.addListener(this);
   }
 
   @override
   void dispose() {
+    _player.removeListener(this);
     _player = null;
     super.dispose();
   }
 
-  _onBufferingUpdate(int percent) {
-    if (widget.updateMe.contains(WatchableAudioProperties.audioBuffering)) {
-      setState(() {});
-    }
+  @override
+  Widget build(BuildContext context) {
+    return widget.playerBuilder != null ? widget.playerBuilder(context, _player, widget.child) : widget.child;
   }
 
-  _onAudioReady() {
+  @override
+  onAudioLengthChanged(Duration length) {
+    // TODO: implement onAudioLengthChanged
+  }
+
+  @override
+  onAudioLoading() {
+    // TODO: implement onAudioLoading
+  }
+
+  @override
+  onAudioReady() {
     if (widget.updateMe.contains(WatchableAudioProperties.audioLength)) {
       setState(() {});
     }
   }
 
-  _onPlayerPlaybackUpdate(Duration position) {
-    if (widget.updateMe.contains(WatchableAudioProperties.audioPlayhead)) {
-      setState(() {});
-    }
-  }
-
-  _onStateChanged(AudioPlayerState newState) {
-    _log.fine('onStateChnaged: $newState');
+  @override
+  onAudioStateChanged(AudioPlayerState audioState) {
+    _log.fine('onStateChanged: $audioState');
     if (widget.updateMe.contains(WatchableAudioProperties.audioPlayerState)) {
       setState(() {});
     }
   }
 
-  _onSeekingChanged(bool isSeeking) {
-    _log.fine('onSeekingChanged: $isSeeking');
-    if (widget.updateMe.contains(WatchableAudioProperties.audioSeeking)) {
+  @override
+  onBufferingUpdate(int percent) {
+    if (widget.updateMe.contains(WatchableAudioProperties.audioBuffering)) {
       setState(() {});
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.playerBuilder != null
-        ? widget.playerBuilder(context, _player, widget.child)
-        : widget.child;
+  onPlayerCompleted() {}
+
+  @override
+  onPlayerPaused() {}
+
+  @override
+  onPlayerPlaying() {}
+
+  @override
+  onPlayerPositionChanged(Duration position) {
+    if (widget.updateMe.contains(WatchableAudioProperties.audioPlayhead)) {
+      setState(() {});
+    }
+  }
+
+  @override
+  onPlayerStopped() {}
+
+  @override
+  onSeekCompleted() {
+    _onSeekingChanged(false);
+  }
+
+  @override
+  onSeekStarted() {
+    _onSeekingChanged(true);
+  }
+
+  void _onSeekingChanged(bool isSeeking) {
+    _log.fine('onSeekingChanged: $isSeeking');
+    if (widget.updateMe.contains(WatchableAudioProperties.audioSeeking)) {
+      setState(() {});
+    }
   }
 }

@@ -1,26 +1,15 @@
+import 'dart:ui' show VoidCallback;
+
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
 final _log = new Logger('AudioPlayer');
 
 class AudioPlayer {
-
   final String playerId;
   final MethodChannel channel;
 
-  // Sets of callbacks that clients can register.
-  final Set<Function(AudioPlayerState)> _onStateChangeds = new Set();
-  final Set<Function(Duration)> _onAudioLengthChangeds = new Set();
-  final Set<Function> _onAudioLoadings = new Set();
-  final Set<Function(int)> _onBufferingUpdates = new Set();
-  final Set<Function> _onAudioReadys = new Set();
-  final Set<Function> _onPlayerPlayings = new Set();
-  final Set<Function(Duration)> _onPlayerPositionChangeds = new Set();
-  final Set<Function> _onPlayerPauseds = new Set();
-  final Set<Function> _onPlayerStoppeds = new Set();
-  final Set<Function> _onPlayerCompleteds = new Set();
-  final Set<Function> _onSeekStarteds = new Set();
-  final Set<Function> _onSeekCompleteds = new Set();
+  final Set<AudioPlayerListener> _listeners = Set();
 
   AudioPlayerState _state;
   Duration _audioLength;
@@ -53,8 +42,8 @@ class AudioPlayer {
 
           _setState(AudioPlayerState.loading);
 
-          for (Function callback in _onAudioLoadings) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onAudioLoading();
           }
           break;
         case "onBufferingUpdate":
@@ -74,8 +63,8 @@ class AudioPlayer {
           // When audio is ready then the playhead is at zero.
           _setPosition(const Duration(milliseconds: 0));
 
-          for (Function callback in _onAudioReadys) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onAudioReady();
           }
           break;
         case "onPlayerPlaying":
@@ -83,8 +72,8 @@ class AudioPlayer {
 
           _setState(AudioPlayerState.playing);
 
-          for (Function callback in _onPlayerPlayings) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onPlayerPlaying();
           }
           break;
         case "onPlayerPlaybackUpdate":
@@ -98,8 +87,8 @@ class AudioPlayer {
 
           _setState(AudioPlayerState.paused);
 
-          for (Function callback in _onPlayerPauseds) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onPlayerPaused();
           }
           break;
         case "onPlayerStopped":
@@ -113,8 +102,8 @@ class AudioPlayer {
 
           _setState(AudioPlayerState.stopped);
 
-          for (Function callback in _onPlayerStoppeds) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onPlayerStopped();
           }
           break;
         case "onPlayerCompleted":
@@ -122,8 +111,8 @@ class AudioPlayer {
 
           _setState(AudioPlayerState.completed);
 
-          for (Function callback in _onPlayerCompleteds) {
-            callback();
+          for (AudioPlayerListener listener in _listeners) {
+            listener.onPlayerCompleted();
           }
           break;
         case "onSeekStarted":
@@ -140,18 +129,7 @@ class AudioPlayer {
   }
 
   void dispose() {
-    _onStateChangeds.clear();
-    _onAudioLengthChangeds.clear();
-    _onAudioLoadings.clear();
-    _onBufferingUpdates.clear();
-    _onAudioReadys.clear();
-    _onPlayerPlayings.clear();
-    _onPlayerPositionChangeds.clear();
-    _onPlayerPauseds.clear();
-    _onPlayerStoppeds.clear();
-    _onPlayerCompleteds.clear();
-    _onSeekStarteds.clear();
-    _onSeekCompleteds.clear();
+    _listeners.clear();
   }
 
   AudioPlayerState get state => _state;
@@ -159,8 +137,8 @@ class AudioPlayer {
   _setState(AudioPlayerState state) {
     _state = state;
 
-    for (Function callback in _onStateChangeds) {
-      callback(state);
+    for (AudioPlayerListener listener in _listeners) {
+      listener.onAudioStateChanged(state);
     }
   }
 
@@ -173,8 +151,8 @@ class AudioPlayer {
   _setAudioLength(Duration audioLength) {
     _audioLength = audioLength;
 
-    for (Function callback in _onAudioLengthChangeds) {
-      callback(_audioLength);
+    for (AudioPlayerListener listener in _listeners) {
+      listener.onAudioLengthChanged(_audioLength);
     }
   }
 
@@ -183,8 +161,8 @@ class AudioPlayer {
   _setBufferedPercent(int percent) {
     _bufferedPercent = percent;
 
-    for (Function callback in _onBufferingUpdates) {
-      callback(_bufferedPercent);
+    for (AudioPlayerListener listener in _listeners) {
+      listener.onBufferingUpdate(_bufferedPercent);
     }
   }
 
@@ -197,8 +175,8 @@ class AudioPlayer {
   _setPosition(Duration position) {
     _position = position;
 
-    for (Function callback in _onPlayerPositionChangeds) {
-      callback(position);
+    for (AudioPlayerListener listener in _listeners) {
+      listener.onPlayerPositionChanged(position);
     }
   }
 
@@ -212,94 +190,22 @@ class AudioPlayer {
     _isSeeking = isSeeking;
 
     if (_isSeeking) {
-      for (Function callback in _onSeekStarteds) {
-        callback();
+      for (AudioPlayerListener listener in _listeners) {
+        listener.onSeekStarted();
       }
     } else {
-      for (Function callback in _onSeekCompleteds) {
-        callback();
+      for (AudioPlayerListener listener in _listeners) {
+        listener.onSeekCompleted();
       }
     }
   }
 
-  void addListener({
-    Function(AudioPlayerState) onStateChanged,
-    Function onAudioLoading,
-    Function(int) onBufferingUpdate,
-    Function onAudioReady,
-    Function(Duration) onAudioLengthChanged,
-    Function onPlayerPlaying,
-    Function(Duration) onPlayerPlaybackUpdate,
-    Function onPlayerPaused,
-    Function onPlayerStopped,
-    Function onPlayerCompleted,
-    Function onSeekStarted,
-    Function onSeekCompleted,
-  }) {
-    if (onStateChanged != null) {
-      _onStateChangeds.add(onStateChanged);
-    }
-    if (onAudioLoading != null) {
-      _onAudioLoadings.add(onAudioLoading);
-    }
-    if (onBufferingUpdate != null) {
-      _onBufferingUpdates.add(onBufferingUpdate);
-    }
-    if (onAudioReady != null) {
-      _onAudioReadys.add(onAudioReady);
-    }
-    if (onAudioLengthChanged != null) {
-      _onAudioLengthChangeds.add(onAudioLengthChanged);
-    }
-    if (onPlayerPlaying != null) {
-      _onPlayerPlayings.add(onPlayerPlaying);
-    }
-    if (onPlayerPlaybackUpdate != null) {
-      _onPlayerPositionChangeds.add(onPlayerPlaybackUpdate);
-    }
-    if (onPlayerPaused != null) {
-      _onPlayerPauseds.add(onPlayerPaused);
-    }
-    if (onPlayerStopped != null) {
-      _onPlayerStoppeds.add(onPlayerStopped);
-    }
-    if (onPlayerCompleted != null) {
-      _onPlayerCompleteds.add(onPlayerCompleted);
-    }
-    if (onSeekStarted != null) {
-      _onSeekStarteds.add(onSeekStarted);
-    }
-    if (onSeekCompleted != null) {
-      _onSeekCompleteds.add(onSeekCompleted);
-    }
+  void addListener(AudioPlayerListener listener) {
+    _listeners.add(listener);
   }
 
-  void removeListener({
-    Function(AudioPlayerState) onStateChanged,
-    Function onAudioLoading,
-    Function(int) onBufferingUpdate,
-    Function onAudioReady,
-    Function(Duration) onAudioLengthChanged,
-    Function onPlayerPlaying,
-    Function(Duration) onPlayerPlaybackUpdate,
-    Function onPlayerPaused,
-    Function onPlayerStopped,
-    Function onPlayerCompleted,
-    Function onSeekStarted,
-    Function onSeekCompleted,
-  }) {
-    _onStateChangeds.remove(onStateChanged);
-    _onAudioLoadings.remove(onAudioLoading);
-    _onBufferingUpdates.remove(onBufferingUpdate);
-    _onAudioReadys.remove(onAudioReady);
-    _onAudioLengthChangeds.remove(onAudioLengthChanged);
-    _onPlayerPlayings.remove(onPlayerPlaying);
-    _onPlayerPositionChangeds.remove(onPlayerPlaybackUpdate);
-    _onPlayerPauseds.remove(onPlayerPaused);
-    _onPlayerStoppeds.remove(onPlayerStopped);
-    _onPlayerCompleteds.remove(onPlayerCompleted);
-    _onSeekStarteds.remove(onSeekStarted);
-    _onSeekCompleteds.remove(onSeekCompleted);
+  void removeListener(AudioPlayerListener listener) {
+    _listeners.remove(listener);
   }
 
   void loadMedia(Uri uri) {
@@ -307,9 +213,7 @@ class AudioPlayer {
     // TODO: how to represent media
     channel.invokeMethod(
       'audioplayer/$playerId/load',
-      {
-        'audioUrl': uri.toString()
-      },
+      {'audioUrl': uri.toString()},
     );
   }
 
@@ -335,16 +239,129 @@ class AudioPlayer {
     _setIsSeeking(true);
 
     channel.invokeMethod(
-        'audioplayer/$playerId/seek',
-        {
-          'seekPosition': duration.inMilliseconds,
-        },
+      'audioplayer/$playerId/seek',
+      {
+        'seekPosition': duration.inMilliseconds,
+      },
     );
   }
 
   void stop() {
     _log.fine('stop()');
     channel.invokeMethod('audioplayer/$playerId/stop');
+  }
+}
+
+class AudioPlayerListener {
+  AudioPlayerListener({
+    Function(AudioPlayerState) onAudioStateChanged,
+    VoidCallback onAudioLoading,
+    Function(int) onBufferingUpdate,
+    VoidCallback onAudioReady,
+    Function(Duration) onAudioLengthChanged,
+    Function(Duration) onPlayerPositionChanged,
+    VoidCallback onPlayerPlaying,
+    VoidCallback onPlayerPaused,
+    VoidCallback onPlayerStopped,
+    VoidCallback onPlayerCompleted,
+    VoidCallback onSeekStarted,
+    VoidCallback onSeekCompleted,
+  })  : _onAudioStateChanged = onAudioStateChanged,
+        _onAudioLoading = onAudioLoading,
+        _onBufferingUpdate = onBufferingUpdate,
+        _onAudioReady = onAudioReady,
+        _onAudioLengthChanged = onAudioLengthChanged,
+        _onPlayerPositionChanged = onPlayerPositionChanged,
+        _onPlayerPlaying = onPlayerPlaying,
+        _onPlayerPaused = onPlayerPaused,
+        _onPlayerStopped = onPlayerStopped,
+        _onPlayerCompleted = onPlayerCompleted,
+        _onSeekStarted = onSeekStarted,
+        _onSeekCompleted = onSeekCompleted;
+
+  final Function(AudioPlayerState) _onAudioStateChanged;
+  final VoidCallback _onAudioLoading;
+  final Function(int) _onBufferingUpdate;
+  final VoidCallback _onAudioReady;
+  final Function(Duration) _onAudioLengthChanged;
+  final Function(Duration) _onPlayerPositionChanged;
+  final VoidCallback _onPlayerPlaying;
+  final VoidCallback _onPlayerPaused;
+  final VoidCallback _onPlayerStopped;
+  final VoidCallback _onPlayerCompleted;
+  final VoidCallback _onSeekStarted;
+  final VoidCallback _onSeekCompleted;
+
+  onAudioStateChanged(AudioPlayerState audioState) {
+    if (_onAudioStateChanged != null) {
+      _onAudioStateChanged(audioState);
+    }
+  }
+
+  onAudioLoading() {
+    if (_onAudioLoading != null) {
+      _onAudioLoading();
+    }
+  }
+
+  onBufferingUpdate(int percent) {
+    if (_onBufferingUpdate != null) {
+      _onBufferingUpdate(percent);
+    }
+  }
+
+  onAudioReady() {
+    if (_onAudioReady != null) {
+      _onAudioReady();
+    }
+  }
+
+  onAudioLengthChanged(Duration length) {
+    if (_onAudioLengthChanged != null) {
+      _onAudioLengthChanged(length);
+    }
+  }
+
+  onPlayerPositionChanged(Duration position) {
+    if (_onPlayerPositionChanged != null) {
+      _onPlayerPositionChanged(position);
+    }
+  }
+
+  onPlayerPlaying() {
+    if (_onPlayerPlaying != null) {
+      _onPlayerPlaying();
+    }
+  }
+
+  onPlayerPaused() {
+    if (_onPlayerPaused != null) {
+      _onPlayerPaused();
+    }
+  }
+
+  onPlayerStopped() {
+    if (_onPlayerStopped != null) {
+      _onPlayerStopped();
+    }
+  }
+
+  onPlayerCompleted() {
+    if (_onPlayerCompleted != null) {
+      _onPlayerCompleted();
+    }
+  }
+
+  onSeekStarted() {
+    if (_onSeekStarted != null) {
+      _onSeekStarted();
+    }
+  }
+
+  onSeekCompleted() {
+    if (_onSeekCompleted != null) {
+      _onSeekCompleted();
+    }
   }
 }
 

@@ -1,10 +1,10 @@
+import 'package:example/audio_samples.dart';
+import 'package:example/declarative_button_list_components.dart';
+import 'package:example/declarative_button_list_whole_state.dart';
+import 'package:example/declarative_playlist_components.dart';
+import 'package:example/imperative_button_list.dart';
+import 'package:example/screen_welcome.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttery_audio_example/audio_samples.dart';
-import 'package:fluttery_audio_example/declarative_button_list_components.dart';
-import 'package:fluttery_audio_example/declarative_button_list_whole_state.dart';
-import 'package:fluttery_audio_example/declarative_playlist_components.dart';
-import 'package:fluttery_audio_example/imperative_button_list.dart';
-import 'package:fluttery_audio_example/screen_welcome.dart';
 import 'package:logging/logging.dart';
 
 void main() {
@@ -22,7 +22,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   int _activeTabIndex = 0;
   Widget Function() _builder;
 
@@ -53,7 +52,6 @@ class _MyAppState extends State<MyApp> {
       audioUrl: audioUrls[audioUrls.length - 1],
     );
   }
-
 
 //    return new DeclarativeAudioSimpleExample(
 //      audioUrl: STREAM_URL,
@@ -106,11 +104,9 @@ class _MyAppState extends State<MyApp> {
         appBar: new AppBar(
           title: new Text('Fluttery Audio'),
         ),
-
         body: new Center(
           child: _builder(),
         ),
-
         bottomNavigationBar: new BottomNavigationBar(
           currentIndex: _activeTabIndex,
           type: BottomNavigationBarType.fixed,

@@ -1,3 +1,8 @@
+## [0.1.0] - June 25, 2019
+	
+**BREAKING CHANGES:** Migrated to use *AndroidX*.
+	
+
 ## [0.0.4] - February 9, 2019
 
 Upgraded to Dart 2 support and upgraded example project to match latest framework structure.
